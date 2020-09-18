@@ -1,0 +1,11 @@
+.idea/
+out/
+*.iml
+.project
+/project/
+/target/
+/test_run_dir/
+/vivado/
+*.anno.json
+*.v
+*.fir
