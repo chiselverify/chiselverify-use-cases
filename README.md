@@ -14,12 +14,13 @@ see also:
     - [x] describe PriorityMinimumFinder
     - [x] write test for PriorityMinimumFinder
  * Heapifier:
+    - [ ] optimize heapify loop behaviour and RAM access [wip]
     - heapify up
         - [x] implement heapify up functionality
         - [x] create test
         - [ ] create automated test cases
     - heapify down
-        - [ ] implement heapify down functionality
+        - [ ] implement heapify down functionality [wip]
         - [ ] create automated test cases
  * top level
     - [ ] implement insertion functionality
