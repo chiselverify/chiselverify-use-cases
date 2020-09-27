@@ -7,12 +7,12 @@ see also:
 
 # Plan
 
- * MinimumFinder:
-    - [x] describe MinimumFinder
-    - [x] write test for MinimumFinder
- * PriorityMinimumFinder:
-    - [x] describe PriorityMinimumFinder
-    - [x] write test for PriorityMinimumFinder
+ * old.MinimumFinder:
+    - [x] describe old.MinimumFinder
+    - [x] write test for old.MinimumFinder
+ * old.PriorityMinimumFinder:
+    - [x] describe old.PriorityMinimumFinder
+    - [x] write test for old.PriorityMinimumFinder
  * Heapifier:
     - heapify up
         - [x] implement heapify up functionality

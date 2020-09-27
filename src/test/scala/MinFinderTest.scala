@@ -1,15 +1,16 @@
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest._
 
-class PriorityMinimumFinderTester(dut: PriorityMinimumFinder, NORMAL_WID: Int, CYCLIC_WID: Int, SIZE: Int, testPasses: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
+class MinFinderTester(dut: MinFinder, normalPriorityWidth: Int, cyclicPriorityWidth: Int, n: Int, testPasses: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
   /////////////////////////////////// helper methods ///////////////////////////////////
   def populatedList(): Array[Array[BigInt]] = {
     val rand = scala.util.Random
-    return Array.fill(SIZE){Array(rand.nextInt(math.pow(2,CYCLIC_WID).toInt),rand.nextInt(math.pow(2,NORMAL_WID).toInt))}
+    return Array.fill(n){Array(rand.nextInt(math.pow(2,cyclicPriorityWidth).toInt),rand.nextInt(math.pow(2,normalPriorityWidth).toInt))}
   }
   def applyVec(list: Array[Array[BigInt]]) = {
-    for(i <- 0 until SIZE){
-      poke(dut.io.values(i),(list(i)(0)<<NORMAL_WID)+list(i)(1))
+    for(i <- 0 until n){
+      poke(dut.io.values(i).cycl,list(i)(0))
+      poke(dut.io.values(i).norm,list(i)(1))
     }
   }
   def calculateOut(list: Array[Array[BigInt]]): BigInt = {
@@ -29,21 +30,21 @@ class PriorityMinimumFinderTester(dut: PriorityMinimumFinder, NORMAL_WID: Int, C
   for(i <- 0 until testPasses){
     val values = populatedList()
     applyVec(values)
-    if(debugOutput) println("\n"+values.map(_(0)).mkString(", ")+"\n"+values.map(_(1)).mkString(", ")++"\n"+peek(dut.io.out).toString())
-    expect(dut.io.out,calculateOut(values))
+    if(debugOutput) println("\n"+values.map(_(0)).mkString(", ")+"\n"+values.map(_(1)).mkString(", ")++"\n"+peek(dut.io.idx).toString())
+    expect(dut.io.idx,calculateOut(values))
   }
   /////////////////////////////////// Test ///////////////////////////////////
 }
 
-class PriorityMinimumFinderTest extends FlatSpec with Matchers {
-  val normalWidth = 25
-  val cyclicWidth = 2
-  val numberOfValues = 8 // note that simulation will not work for >30 due to some datatype max value issues
-  val testPasses = 100
+class MinFinderTest extends FlatSpec with Matchers {
+  val normalPriorityWidth = 25
+  val cyclicPriorityWidth = 2
+  val numberOfValues = 8
+  val testPasses = 500
   val debugOutput = false
-  "PriorityMinimumFinder" should "identify minimum value with the lowest index" in {
-    chisel3.iotesters.Driver(() => new PriorityMinimumFinder(numberOfValues, normalWidth, cyclicWidth)) {
-      c => new PriorityMinimumFinderTester(c,normalWidth,cyclicWidth,numberOfValues,testPasses,debugOutput)
+  "old.PriorityMinimumFinder" should "identify minimum value with the lowest index" in {
+    chisel3.iotesters.Driver(() => new MinFinder(numberOfValues, normalPriorityWidth, cyclicPriorityWidth)) {
+      c => new MinFinderTester(c,normalPriorityWidth,cyclicPriorityWidth,numberOfValues,testPasses,debugOutput)
     } should be(true)
   }
 }

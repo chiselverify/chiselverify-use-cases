@@ -1,7 +1,8 @@
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest._
 
-class MinimumFinderTester(dut: MinimumFinder, n: Int, w: Int, testPasses: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
+
+class MinimumFinderTester(dut: MinFinder, n: Int, w: Int, testPasses: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
   /////////////////////////////////// helper methods ///////////////////////////////////
   def populatedList(): Array[BigInt] = {
     val rand = scala.util.Random
@@ -9,7 +10,7 @@ class MinimumFinderTester(dut: MinimumFinder, n: Int, w: Int, testPasses: Int, d
   }
   def applyVec(list: Array[BigInt]) = {
     for(i <- 0 until n){
-      poke(dut.io.values(i),list(i))
+      poke(dut.io.values(i).norm,list(i))
     }
   }
   def calculateOut(list: Array[BigInt]): BigInt = {
@@ -25,8 +26,8 @@ class MinimumFinderTester(dut: MinimumFinder, n: Int, w: Int, testPasses: Int, d
   for(i <- 0 until testPasses){
     val values = populatedList()
     applyVec(values)
-    if(debugOutput) println("\n"+values.mkString(", ")+"\n"+peek(dut.io.out).toInt.toBinaryString.reverse.split("").mkString(", "))
-    expect(dut.io.out,calculateOut(values))
+    if(debugOutput) println("\n"+values.mkString(", ")+"\n"+peek(dut.io.idx).toInt.toBinaryString.reverse.split("").mkString(", "))
+    expect(dut.io.idx,calculateOut(values))
   }
   /////////////////////////////////// Test ///////////////////////////////////
 }
@@ -36,7 +37,7 @@ class MinimumFinderTest extends FlatSpec with Matchers {
   val w = 8
   val testPasses = 100
   val debugOutput = false
-  "MinimumFinder" should "identify all minimum values" in {
-    chisel3.iotesters.Driver(() => new MinimumFinder(n,w)) { c => new MinimumFinderTester(c,n,w,testPasses,debugOutput) } should be(true)
+  "old.MinimumFinder" should "identify all minimum values" in {
+    chisel3.iotesters.Driver(() => new MinFinder(n,w,2)) { c => new MinimumFinderTester(c,n,w,testPasses,debugOutput) } should be(true)
   }
 }

@@ -14,6 +14,7 @@ object Definitions {
   def RamAddressChildren(indexParent: UInt, childrenCount: Int): UInt ={
     return indexParent
   }
+
 }
 
 
@@ -27,3 +28,7 @@ object HelpFunctions {
   }
 }
 
+class Priority(normalPriorityWidth: Int, cyclicPriorityWidth: Int) extends Bundle{
+  val norm = UInt(normalPriorityWidth.W)
+  val cycl = UInt(cyclicPriorityWidth.W)
+}
