@@ -7,22 +7,20 @@ see also:
 
 # Plan
 
- * old.MinimumFinder:
-    - [x] describe old.MinimumFinder
-    - [x] write test for old.MinimumFinder
- * old.PriorityMinimumFinder:
-    - [x] describe old.PriorityMinimumFinder
-    - [x] write test for old.PriorityMinimumFinder
+ * MinFinder:
+    - [x] describe MinFinder
+    - [x] write test for MinFinder
  * Heapifier:
-    - [ ] optimize heapify loop behaviour and RAM access [wip]
+    - [x] optimize heapify loop behaviour and RAM access
+    - [x] create model
     - heapify up
         - [x] implement heapify up functionality
         - [x] create test
-        - [ ] create automated test cases
+        - [x] create automated test cases
     - heapify down
-        - [ ] implement heapify down functionality [wip]
-        - [ ] create automated test cases
+        - [x] implement heapify down functionality
+        - [x] create automated test cases
  * top level
-    - [ ] implement insertion functionality
-    - [ ] implement reference ID mapping
-    - [ ] implement removal functionality
+    - [ ] implement insertion functionality [wip]
+    - [ ] implement reference ID mapping [wip]
+    - [ ] implement removal functionality [wip]
