@@ -1,4 +1,3 @@
-import chisel3._
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest.{FlatSpec, Matchers}
 import Behavioural._
@@ -37,6 +36,7 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
   poke(dut.io.control.heapifyUp,true)
   poke(dut.io.headPort.rdData.cycl,root(0))
   poke(dut.io.headPort.rdData.norm,root(1))
+  poke(dut.io.control.heapSize,heapSize)
 
   // loop variables
   var iterations = 0
@@ -129,6 +129,7 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
   poke(dut.io.control.heapifyUp,false)
   poke(dut.io.headPort.rdData.cycl,root(0))
   poke(dut.io.headPort.rdData.norm,root(1))
+  poke(dut.io.control.heapSize,heapSize)
 
   // loop variables
   var iterations = 0

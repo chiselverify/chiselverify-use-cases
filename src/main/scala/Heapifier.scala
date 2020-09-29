@@ -29,6 +29,7 @@ class Heapifier(
       val done = Output(Bool())
       val swapped = Output(Bool())
       val index = Input(UInt(log2Ceil(size).W))
+      val heapSize = Input(UInt(log2Ceil(size+1).W))
     }
     val ramReadPort = new Bundle{
       val address = Output(UInt(log2Ceil(size/childrenCount).W))
@@ -176,7 +177,7 @@ class Heapifier(
       stateReg := readDown
       indexReg := nextIndexDown
       addressIndex := nextIndexDown
-      when((nextIndexDown<<log2Ceil(childrenCount)).asUInt >= size.U){ // we have reached a childless index and can go to idle
+      when((nextIndexDown<<log2Ceil(childrenCount)).asUInt >= io.control.heapSize){ // we have reached a childless index and can go to idle
         io.control.done := true.B
         stateReg := idle
       }
