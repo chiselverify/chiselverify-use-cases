@@ -18,12 +18,7 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
   var lastWriteAddr = 0
 
   // determine the last index which has children
-  var lastParent = 0
-  for(i <- 0 until heapSize){
-    if((i * childrenCount)+1 < heapSize){
-      lastParent = i
-    }
-  }
+  var lastParent = Seq.tabulate(heapSize)(i => (i * childrenCount)+1 < heapSize).lastIndexOf(true)
   // randomly set starting index
   val index = rand.nextInt(lastParent)
 
@@ -89,7 +84,7 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
     iterations +=1
   }
   // print out components and models results
-  println(s"\nResult:\n${root.mkString(":")}, ${Mem.flatten.map(_.mkString(":")).mkString(", ")}\nModel:\n${priorities.map(_.mkString(":")).mkString(", ")}")
+  println(s"\nStart from index $index:\n${prioritiesOriginal.map(_.mkString(":")).mkString(", ")}\nResult:\n${root.mkString(":")}, ${Mem.flatten.map(_.mkString(":")).mkString(", ")}\nModel:\n${priorities.map(_.mkString(":")).mkString(", ")}")
   // check for equality
   expect(priorities(0).deep == root.deep, "")
   expect(priorities.slice(1,priorities.length).deep == Mem.flatten.deep,"")
@@ -111,12 +106,7 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
   var lastWriteAddr = 0
 
   // determine the last index which has children
-  var lastParent = 0
-  for(i <- 0 until heapSize){
-    if((i * childrenCount)+1 < heapSize){
-      lastParent = i
-    }
-  }
+  var lastParent = Seq.tabulate(heapSize)(i => (i * childrenCount)+1 < heapSize).lastIndexOf(true)
   // randomly set starting index
   val index = rand.nextInt(lastParent)
 
@@ -181,7 +171,7 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
     iterations +=1
   }
   // print out components and models results
-  println(s"\nResult:\n${root.mkString(":")}, ${Mem.flatten.map(_.mkString(":")).mkString(", ")}\nModel:\n${priorities.map(_.mkString(":")).mkString(", ")}")
+  println(s"\nStart from index $index:\n${prioritiesOriginal.map(_.mkString(":")).mkString(", ")}\nResult:\n${root.mkString(":")}, ${Mem.flatten.map(_.mkString(":")).mkString(", ")}\nModel:\n${priorities.map(_.mkString(":")).mkString(", ")}")
 
   // check for equality
   expect(priorities(0).deep == root.deep, "")
