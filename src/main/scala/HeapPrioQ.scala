@@ -47,6 +47,9 @@ class HeapPrioQ(
       val heapifierState = Output(UInt())
       val heapifierIndex = Output(UInt(log2Ceil(size).W))
       val heapifierWrite = Output(Bool())
+      val minOut = Output(UInt(log2Ceil(childrenCount).W))
+      val minInputs = Output(Vec(childrenCount+1,new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
+      val swap = Output(Bool())
     }
   })
   if(!isPow2(childrenCount)) throw new Exception("The number of children must be a power of 2!")
@@ -92,6 +95,9 @@ class HeapPrioQ(
   io.debug.heapifierState := heapifier.io.state
   io.debug.heapifierIndex := heapifier.io.indexOut
   io.debug.heapifierWrite := heapifier.io.ramWritePort.write
+  io.debug.minOut := heapifier.io.out
+  io.debug.minInputs := heapifier.io.minInputs
+  io.debug.swap := heapifier.io.swap
 
 
   switch(stateReg){
@@ -138,6 +144,10 @@ class HeapPrioQ(
     is(waitForHeapifyUp){
       heapifier.io.control.heapifyUp := true.B
       stateReg := waitForHeapifyUp
+      io.ramReadPort.address := heapifier.io.ramReadPort.address
+      heapifier.io.ramReadPort.data := io.ramReadPort.data
+      io.ramWritePort.address := heapifier.io.ramWritePort.address
+      io.ramWritePort.data := heapifier.io.ramWritePort.data
       io.ramWritePort.write := heapifier.io.ramWritePort.write
       when(heapifier.io.control.done){
         stateReg := idle

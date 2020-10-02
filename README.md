@@ -21,6 +21,6 @@ see also:
         - [x] implement heapify down functionality
         - [x] create automated test cases
  * top level
-    - [ ] implement insertion functionality [wip]
+    - [x] implement insertion functionality
     - [ ] implement reference ID mapping [wip]
     - [ ] implement removal functionality [wip]

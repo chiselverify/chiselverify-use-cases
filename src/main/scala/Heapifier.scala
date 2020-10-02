@@ -31,8 +31,10 @@ class Heapifier(
       val index = Input(UInt(log2Ceil(size).W))
       val heapSize = Input(UInt(log2Ceil(size+1).W))
     }
+
     val ramReadPort = new ramReadPort(log2Ceil(size/childrenCount),Vec(childrenCount,new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
     val ramWritePort = new ramWritePort(log2Ceil(size/childrenCount),Vec(childrenCount,new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
+
     // port to the cached head element stored in a register
     val headPort = new Bundle{
       val rdData = Input(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth))
