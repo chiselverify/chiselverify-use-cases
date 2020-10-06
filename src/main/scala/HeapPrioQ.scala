@@ -58,7 +58,7 @@ class HeapPrioQ(
   val heapifier = Module(new Heapifier(size, childrenCount, normalPriorityWidth, cyclicPriorityWidth))
 
   // state elements
-  val idle :: headInsertion:: insertion0 :: insertion1 :: insertion2 :: waitForHeapifyUp :: Nil = Enum(6)
+  val idle :: headInsertion:: insertion0 :: insertion1 :: insertion2 :: waitForHeapifyUp :: lastRemoval :: removal0 :: removal1 :: removal2 :: removal3 :: waitForHeapifyDown :: headRemoval1 :: Nil = Enum(13)
   val stateReg = RegInit(idle)
   val heapSizeReg = RegInit(0.U(log2Ceil(size+1).W))
   val headReg = RegInit(0.U.asTypeOf(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
@@ -67,6 +67,14 @@ class HeapPrioQ(
   val index = WireDefault(0.U(log2Ceil(size).W))
   val indexToRam = ((index - 1.U) >> log2Ceil(childrenCount)).asUInt
   val indexOffset = Mux(index === 0.U, 0.U, index(log2Ceil(childrenCount),0) - 1.U(log2Ceil(size).W))
+
+  val incHeapsize = WireDefault(false.B)
+  val decHeapsize = WireDefault(false.B)
+  when(incHeapsize){
+    heapSizeReg := heapSizeReg + 1.U
+  }.elsewhen(decHeapsize){
+    heapSizeReg := heapSizeReg - 1.U
+  }
 
   heapifier.io.control.heapifyUp := false.B
   heapifier.io.control.heapifyDown := false.B
@@ -82,6 +90,7 @@ class HeapPrioQ(
   io.ramWritePort.data := heapifier.io.ramWritePort.data
   io.ramWritePort.write := heapifier.io.ramWritePort.write
 
+  // default assignments
   io.head.prio := headReg
   io.head.none := heapSizeReg === 0.U
   io.head.valid := true.B
@@ -110,14 +119,17 @@ class HeapPrioQ(
              stateReg := headInsertion
            }
          }.otherwise{
-           stateReg := idle
+           stateReg := removal0
+           when(io.cmd.refID === 0.U && heapSizeReg === 1.U){
+             stateReg := lastRemoval
+           }
          }
       }
     }
     is(headInsertion){
       headReg := io.cmd.prio
       io.head.valid := false.B
-      heapSizeReg := heapSizeReg + 1.U
+      incHeapsize := true.B
       stateReg := idle
     }
     is(insertion0){
@@ -136,20 +148,69 @@ class HeapPrioQ(
       io.ramWritePort.data := tempReg
       io.ramWritePort.data(indexOffset) := io.cmd.prio
       io.ramWritePort.write := true.B
-      heapSizeReg := heapSizeReg + 1.U
+      incHeapsize := true.B
       heapifier.io.control.index := Mux(heapSizeReg < childrenCount.U, 0.U, ((heapSizeReg - 1.U) << log2Ceil(childrenCount)).asUInt)
       heapifier.io.control.heapifyUp := true.B
       stateReg := waitForHeapifyUp
     }
     is(waitForHeapifyUp){
-      heapifier.io.control.heapifyUp := true.B
       stateReg := waitForHeapifyUp
-      io.ramReadPort.address := heapifier.io.ramReadPort.address
-      heapifier.io.ramReadPort.data := io.ramReadPort.data
-      io.ramWritePort.address := heapifier.io.ramWritePort.address
-      io.ramWritePort.data := heapifier.io.ramWritePort.data
-      io.ramWritePort.write := heapifier.io.ramWritePort.write
       when(heapifier.io.control.done){
+        stateReg := idle
+        when(io.cmd.op === 0.U && heapifier.io.control.swapped){
+          heapifier.io.control.index := io.cmd.refID
+          heapifier.io.control.heapifyDown := true.B
+          stateReg := waitForHeapifyDown
+        }
+      }.otherwise{
+        heapifier.io.control.heapifyUp := true.B
+      }
+    }
+    is(lastRemoval){
+      decHeapsize := true.B
+      stateReg := idle
+    }
+    is(removal0){
+      index := heapSizeReg - 1.U
+      io.ramReadPort.address := indexToRam
+      decHeapsize := true.B
+      stateReg := removal1
+      when(io.cmd.refID === 0.U){
+        stateReg := headRemoval1
+      }
+    }
+    is(removal1){
+      index := io.cmd.refID
+      io.ramReadPort.address := indexToRam
+      tempReg := io.ramReadPort.data
+      stateReg := removal2
+    }
+    is(removal2){
+      index := io.cmd.refID
+      io.ramWritePort.address := indexToRam
+      tempReg := io.ramReadPort.data
+      tempReg(indexOffset) := tempReg(indexOffset)
+      stateReg := removal3
+    }
+    is(removal3){
+      index := io.cmd.refID
+      io.ramWritePort.data := tempReg
+      io.ramWritePort.write := true.B
+      heapifier.io.control.heapifyUp := true.B
+      heapifier.io.control.index := io.cmd.refID
+      stateReg := waitForHeapifyUp
+    }
+    is(headRemoval1){
+      index := heapSizeReg
+      headReg := io.ramReadPort.data(indexOffset)
+      heapifier.io.control.heapifyDown := true.B
+      heapifier.io.control.index := io.cmd.refID
+      stateReg := waitForHeapifyDown
+    }
+    is(waitForHeapifyDown){
+      stateReg := waitForHeapifyDown
+      heapifier.io.control.heapifyDown := true.B
+      when(heapifier.io.control.done) {
         stateReg := idle
       }
     }

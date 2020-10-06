@@ -68,6 +68,7 @@ private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize
       lastReadAddr = peek(dut.io.ramReadPort.address).toInt
       lastWriteAddr = peek(dut.io.ramWritePort.address).toInt
       step(1)
+      poke(dut.io.cmd.valid, 0)
       // print states
       if (debugOutput) {
         println(s"States: ${peek(dut.io.debug.state)} || ${peek(dut.io.debug.heapifierState)} at index ${peek(dut.io.debug.heapifierIndex)}\n"+
@@ -76,11 +77,24 @@ private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize
       iterations += 1
     }
   }
+  poke(dut.io.cmd.valid, 0)
   println(s"Inserted ${toBeInserted.map(_.mkString(":")).mkString(", ")}")
   println(s"Head of queue is ${peek(dut.io.head.prio).mkString(", ")}")
   val expected = findSmallest(toBeInserted,normalWidth,cyclicWidth)
   expect(dut.io.head.prio.norm, expected(1))
   expect(dut.io.head.prio.cycl, expected(0))
+
+  println(s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
+
+  poke(dut.io.cmd.op, 0)
+  poke(dut.io.cmd.refID, 0)
+  poke(dut.io.cmd.valid, 1)
+  var iterations = 0
+  while(peek(dut.io.cmd.done).toInt != 1 && iterations < 2){
+    iterations += 1
+    step(1)
+  }
+  println(s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
 }
 
 class PriorityQueueTests extends FlatSpec with Matchers {
@@ -89,7 +103,7 @@ class PriorityQueueTests extends FlatSpec with Matchers {
   val heapSize = 17
   val childrenCount = 4
   val referenceWidth = 2
-  val debugOutput = false
+  val debugOutput = true
   "HeapPrioQ" should "pass" in {
     chisel3.iotesters.Driver(() => new HeapPrioQ(heapSize,childrenCount,normalWidth,cyclicWidth,referenceWidth)) {
       c => new Test1(c,normalWidth,cyclicWidth,heapSize,childrenCount,referenceWidth,debugOutput)

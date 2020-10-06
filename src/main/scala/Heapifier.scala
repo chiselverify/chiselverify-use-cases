@@ -135,7 +135,7 @@ class Heapifier(
     is(wbUp1){
       stateReg := wbUp2
       when(!swapRequired){ // when no swap is required we go into idle state
-        io.control.done := true.B
+        //io.control.done := true.B
         stateReg := idle
       }.otherwise{ // we have swapped
         swappedReg := true.B
@@ -146,7 +146,7 @@ class Heapifier(
       indexReg := nextIndexUp
       addressIndex := nextIndexUp
       when(indexReg === 0.U){ // we have reached the root and can go to idle
-        io.control.done := true.B
+        //io.control.done := true.B
         stateReg := idle
       }
     }
@@ -162,7 +162,7 @@ class Heapifier(
     is(wbDown1){
       stateReg := wbDown2
       when(!swapRequired){ // when no swap is required we go into idle state
-        io.control.done := true.B
+        //io.control.done := true.B
         stateReg := idle
       }.otherwise{ // we have swapped
         swappedReg := true.B
@@ -173,7 +173,7 @@ class Heapifier(
       indexReg := nextIndexDown
       addressIndex := nextIndexDown
       when((nextIndexDown<<log2Ceil(childrenCount)).asUInt >= io.control.heapSize){ // we have reached a childless index and can go to idle
-        io.control.done := true.B
+        //io.control.done := true.B
         stateReg := idle
       }
     }
