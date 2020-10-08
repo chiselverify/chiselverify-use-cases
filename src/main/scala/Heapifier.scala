@@ -92,7 +92,7 @@ class Heapifier(
   io.control.swapped := swappedReg
   io.ramReadPort.address := 0.U
   io.ramWritePort.address := 0.U
-  io.ramWritePort.data := parentReg
+  io.ramWritePort.data := childrenReg
   io.ramWritePort.write := false.B
   io.headPort.write := false.B
   io.headPort.wrData := parentReg(0)
@@ -201,8 +201,6 @@ class Heapifier(
     is(wbUp1){ // write back the updated children RAM cell if a swap is required and update the parent register
       io.ramWritePort.address := ramAddressParent
       when(swapRequired){
-        parentReg := parentReg
-        parentReg(parentOffset) := minFinder.io.res
         io.ramWritePort.data := childrenReg
         io.ramWritePort.data(minFinder.io.idx - 1.U) := parent
         io.ramWritePort.write := true.B
@@ -211,6 +209,7 @@ class Heapifier(
     is(wbUp2){ // write back the parent register and transfer the parent RAM cell to the children register
       io.ramReadPort.address := ramAddressParent
       childrenReg := parentReg
+      childrenReg(parentOffset) := minFinder.io.res
       when(swapRequired){
         when(indexReg === 0.U){ // write via head port if parent is head
           io.headPort.wrData := minFinder.io.res

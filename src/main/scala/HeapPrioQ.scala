@@ -2,12 +2,16 @@ import chisel3._
 import chisel3.util._
 import lib._
 
+//TODO: do we need to reset cells to max values => would errors due to elements outside of heap tree occur?
+// -> set flag when on last used address and deactivate inputs accordingly to minfinder
+//TODO: catch unsuccessfull operations
+
 class HeapPrioQ(
                  size : Int, // max number of elements in queue
-                 childrenCount : Int, // Number of children per node. Must be 2^m
-                 normalPriorityWidth : Int, // Width of normal priority
-                 cyclicPriorityWidth : Int, // Width of cyclic priority
-                 referenceWidth : Int // Width of reference. Must be >= clog2(SIZE)
+                 chCount : Int, // Number of children per node. Must be 2^m
+                 nWid : Int, // Width of normal priority
+                 cWid : Int, // Width of cyclic priority
+                 rWid : Int // Width of reference. Must be >= clog2(SIZE)
                   ) extends Module{
   val io = IO(new Bundle{
     // =====================================================
@@ -17,8 +21,8 @@ class HeapPrioQ(
     val head = new Bundle{
       val valid = Output(Bool())
       val none = Output(Bool())
-      val prio = Output(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth))
-      val refID = Output(UInt(referenceWidth.W))
+      val prio = Output(new PriorityBundle(nWid,cWid))
+      val refID = Output(UInt(rWid.W))
     }
     // =====================================================
     // Interface for element insertion/removal
@@ -31,43 +35,45 @@ class HeapPrioQ(
       // inputs
       val valid = Input(Bool()) //TODO: when is head valid?
       val op = Input(Bool()) // 0=Remove, 1=Insert
-      val prio = Input(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth))
-      val refID = Input(UInt(referenceWidth.W))
+      val prio = Input(new PriorityBundle(nWid,cWid))
+      val refID = Input(UInt(rWid.W))
       // outputs
       val done = Output(Bool())
       val result = Output(Bool()) // 0=Success, 1=Failure
-      val rm_prio = Output(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth))
+      val rm_prio = Output(new PriorityBundle(nWid,cWid))
     }
 
-    val ramReadPort = new ramReadPort(log2Ceil(size/childrenCount),Vec(childrenCount,new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
-    val ramWritePort = new ramWritePort(log2Ceil(size/childrenCount),Vec(childrenCount,new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
+    val ramReadPort = new ramReadPort(log2Ceil(size/chCount),Vec(chCount,new PriorityBundle(nWid,cWid)))
+    val ramWritePort = new ramWritePort(log2Ceil(size/chCount),Vec(chCount,new PriorityBundle(nWid,cWid)))
 
     val debug = new Bundle{
       val state = Output(UInt())
       val heapifierState = Output(UInt())
       val heapifierIndex = Output(UInt(log2Ceil(size).W))
       val heapifierWrite = Output(Bool())
-      val minOut = Output(UInt(log2Ceil(childrenCount).W))
-      val minInputs = Output(Vec(childrenCount+1,new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
+      val minOut = Output(UInt(log2Ceil(chCount).W))
+      val minInputs = Output(Vec(chCount+1,new PriorityBundle(nWid,cWid)))
       val swap = Output(Bool())
     }
   })
-  if(!isPow2(childrenCount)) throw new Exception("The number of children must be a power of 2!")
+  if(!isPow2(chCount)) throw new Exception("The number of children must be a power of 2!")
 
   // modules
-  val heapifier = Module(new Heapifier(size, childrenCount, normalPriorityWidth, cyclicPriorityWidth))
+  val heapifier = Module(new Heapifier(size, chCount, nWid, cWid))
 
   // state elements
   val idle :: headInsertion:: insertion0 :: insertion1 :: insertion2 :: waitForHeapifyUp :: lastRemoval :: removal0 :: removal1 :: removal2 :: removal3 :: waitForHeapifyDown :: headRemoval1 :: Nil = Enum(13)
   val stateReg = RegInit(idle)
   val heapSizeReg = RegInit(0.U(log2Ceil(size+1).W))
-  val headReg = RegInit(0.U.asTypeOf(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
-  val tempReg = RegInit(VecInit(Seq.fill(childrenCount)(0.U.asTypeOf(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))))
+  val headReg = RegInit(0.U.asTypeOf(new PriorityBundle(nWid,cWid)))
+  val tempReg = RegInit(VecInit(Seq.fill(chCount)(0.U.asTypeOf(new PriorityBundle(nWid,cWid)))))
 
+  // ram address and offset
   val index = WireDefault(0.U(log2Ceil(size).W))
-  val indexToRam = ((index - 1.U) >> log2Ceil(childrenCount)).asUInt
-  val indexOffset = Mux(index === 0.U, 0.U, index(log2Ceil(childrenCount),0) - 1.U(log2Ceil(size).W))
+  val indexToRam = ((index - 1.U) >> log2Ceil(chCount)).asUInt
+  val indexOffset = Mux(index === 0.U, 0.U, index(log2Ceil(chCount),0) - 1.U(log2Ceil(size).W))
 
+  // heapSize controlling
   val incHeapsize = WireDefault(false.B)
   val decHeapsize = WireDefault(false.B)
   when(incHeapsize){
@@ -76,6 +82,7 @@ class HeapPrioQ(
     heapSizeReg := heapSizeReg - 1.U
   }
 
+  // connect heapifier
   heapifier.io.control.heapifyUp := false.B
   heapifier.io.control.heapifyDown := false.B
   heapifier.io.control.index := heapSizeReg
@@ -84,6 +91,7 @@ class HeapPrioQ(
   when(heapifier.io.headPort.write){
     headReg := heapifier.io.headPort.wrData
   }
+  // default ram connections
   io.ramReadPort.address := heapifier.io.ramReadPort.address
   heapifier.io.ramReadPort.data := io.ramReadPort.data
   io.ramWritePort.address := heapifier.io.ramWritePort.address
@@ -97,7 +105,7 @@ class HeapPrioQ(
   io.head.refID := 0.U
   io.cmd.done := false.B
   io.cmd.result := false.B
-  io.cmd.rm_prio := 0.U.asTypeOf(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth))
+  io.cmd.rm_prio := 0.U.asTypeOf(new PriorityBundle(nWid,cWid))
 
   //TODO: remove debug outputs
   io.debug.state := stateReg
@@ -149,7 +157,7 @@ class HeapPrioQ(
       io.ramWritePort.data(indexOffset) := io.cmd.prio
       io.ramWritePort.write := true.B
       incHeapsize := true.B
-      heapifier.io.control.index := Mux(heapSizeReg < childrenCount.U, 0.U, ((heapSizeReg - 1.U) << log2Ceil(childrenCount)).asUInt)
+      heapifier.io.control.index := Mux(heapSizeReg < chCount.U, 0.U, ((heapSizeReg - 1.U) << log2Ceil(chCount)).asUInt)
       heapifier.io.control.heapifyUp := true.B
       stateReg := waitForHeapifyUp
     }
@@ -189,7 +197,7 @@ class HeapPrioQ(
       index := io.cmd.refID
       io.ramWritePort.address := indexToRam
       tempReg := io.ramReadPort.data
-      tempReg(indexOffset) := tempReg(indexOffset)
+      tempReg(indexOffset) := tempReg(heapSizeReg(log2Ceil(chCount),0) - 1.U) //FIXME: find better solution
       stateReg := removal3
     }
     is(removal3){
@@ -209,9 +217,10 @@ class HeapPrioQ(
     }
     is(waitForHeapifyDown){
       stateReg := waitForHeapifyDown
-      heapifier.io.control.heapifyDown := true.B
       when(heapifier.io.control.done) {
         stateReg := idle
+      }.otherwise{
+        heapifier.io.control.heapifyDown := true.B
       }
     }
   }

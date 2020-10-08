@@ -22,5 +22,8 @@ see also:
         - [x] create automated test cases
  * top level
     - [x] implement insertion functionality
-    - [ ] implement reference ID mapping [wip]
-    - [ ] implement removal functionality [wip]
+    - [ ] implement reference ID mapping and removal functionality 
+        - [ ] integrate masked memory operation [wip]
+        - [ ] integrate linear search over reference IDs [wip]
+        - [ ] consider other ways to search for IDs
+    - [ ] expand behavioural model? which language?

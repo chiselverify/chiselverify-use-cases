@@ -63,7 +63,7 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
       println(s"\nstate: ${peek(dut.io.state)} | index: ${peek(dut.io.indexOut)} | nextIndex: ${peek(dut.io.nextIndexOut)}\n"+
       s"ReadPort: ${peek(dut.io.ramReadPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
       s"WritePort: ${peek(dut.io.ramWritePort.address)} | ${peek(dut.io.ramWritePort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.ramWritePort.write)}\n"+
-      s"MinInput: ${peek(dut.io.minInputs).sliding(2,2).map(_.mkString(":")).mkString(", ")}\n"+
+      s"MinInput: ${peek(dut.io.minInputs).sliding(2,2).map(_.mkString(":")).mkString(", ")} | ${peek(dut.io.out)}\n"+
       s"parentOffset: ${peek(dut.io.parentOff)}\n"+
       s"Memory:\n${root.mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
     }
@@ -143,6 +143,7 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
     }
     // catch writes to head element
     if(peek(dut.io.headPort.write).toInt == 1){
+      println("head write")
       root(0) = peek(dut.io.headPort.wrData.cycl).toInt
       root(1) = peek(dut.io.headPort.wrData.norm).toInt
     }
@@ -151,7 +152,7 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
       println(s"\nstate: ${peek(dut.io.state)} | index: ${peek(dut.io.indexOut)} | nextIndex: ${peek(dut.io.nextIndexOut)}\n"+
         s"ReadPort: ${peek(dut.io.ramReadPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
         s"WritePort: ${peek(dut.io.ramWritePort.address)} | ${peek(dut.io.ramWritePort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.ramWritePort.write)}\n"+
-        s"MinInput: ${peek(dut.io.minInputs).sliding(2,2).map(_.mkString(":")).mkString(", ")}\n"+
+        s"MinInput: ${peek(dut.io.minInputs).sliding(2,2).map(_.mkString(":")).mkString(", ")} | ${peek(dut.io.out)}\n"+
         s"parentOffset: ${peek(dut.io.parentOff)}\n"+
         s"Memory:\n${root.mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
     }
@@ -170,6 +171,7 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
     step(1)
     iterations +=1
   }
+  step(1)
   // print out components and models results
   println(s"\nStart from index $index:\n${prioritiesOriginal.map(_.mkString(":")).mkString(", ")}\nResult:\n${root.mkString(":")}, ${Mem.flatten.map(_.mkString(":")).mkString(", ")}\nModel:\n${priorities.map(_.mkString(":")).mkString(", ")}")
 

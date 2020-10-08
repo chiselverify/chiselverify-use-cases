@@ -13,39 +13,10 @@ private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize
     }
     return smallest
   }
-
-  // setup random memory state
-  val rand = scala.util.Random
-  val priorities: Array[Array[Int]] = Array.fill(heapSize)(Array(Math.pow(2,cyclicWidth).toInt-1,Math.pow(2,normalWidth).toInt-1))
-  val prioritiesOriginal = priorities.map(_.clone())
-  // create 3d array. First index is RAM address, 2nd index selects element at RAM address, 3rd selects cyclic or normal priority value
-  val Mem: Array[Array[Array[Int]]] = priorities.slice(1,priorities.length).sliding(childrenCount,childrenCount).toArray.map(_.map(_.clone()))
-  // root/head element is not a part of RAM
-
-  // simulate synchronous memory
-  var lastReadAddr = 0
-  var lastWriteAddr = 0
-
-  // determine the last index which has children
-  var lastParent = Seq.tabulate(heapSize)(i => (i * childrenCount)+1 < heapSize).lastIndexOf(true)
-  // randomly set starting index
-  val index = rand.nextInt(lastParent)
-
-  // apply behavioral model to memory state
-  heapifyUp(priorities, childrenCount, heapSize, index)
-
-  // setup inputs of dut
-  poke(dut.io.cmd.valid, false)
-  poke(dut.io.cmd.op,1)
-  poke(dut.io.cmd.refID,0)
-  val toBeInserted = Seq.fill(heapSize)(Array(rand.nextInt(Math.pow(2,cyclicWidth).toInt), rand.nextInt(Math.pow(2,normalWidth).toInt)))
-  // loop variables
-  for(i <- 0 until heapSize) {
+  def SimMemUntilDone() = {
+    var lastReadAddr = 0
+    var lastWriteAddr = 0
     var iterations = 0
-    poke(dut.io.cmd.prio.cycl, toBeInserted(i)(0))
-    poke(dut.io.cmd.prio.norm, toBeInserted(i)(1))
-    poke(dut.io.cmd.valid, true)
-
     while (peek(dut.io.cmd.done).toInt == 0 || iterations < 1) {
 
       try {
@@ -68,15 +39,55 @@ private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize
       lastReadAddr = peek(dut.io.ramReadPort.address).toInt
       lastWriteAddr = peek(dut.io.ramWritePort.address).toInt
       step(1)
-      poke(dut.io.cmd.valid, 0)
       // print states
       if (debugOutput) {
         println(s"States: ${peek(dut.io.debug.state)} || ${peek(dut.io.debug.heapifierState)} at index ${peek(dut.io.debug.heapifierIndex)}\n"+
+          s"ReadPort: ${peek(dut.io.ramReadPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
+          s"WritePort: ${peek(dut.io.ramWritePort.address)} | ${peek(dut.io.ramWritePort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.ramWritePort.write)}\n"+
           s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
       }
       iterations += 1
     }
+    poke(dut.io.cmd.valid, 0)
   }
+
+  def insert(id: Int, cycl: Int, norm: Int): Unit ={
+    println(s"Inserting $id:$cycl:$norm")
+    poke(dut.io.cmd.op, 1)
+    poke(dut.io.cmd.prio.cycl, cycl)
+    poke(dut.io.cmd.prio.norm, norm)
+    poke(dut.io.cmd.refID, id)
+    poke(dut.io.cmd.valid, 1)
+    SimMemUntilDone()
+  }
+  def remove(id: Int): Unit ={
+    println(s"Removing at index $id")
+    poke(dut.io.cmd.op, 0)
+    poke(dut.io.cmd.refID, id)
+    poke(dut.io.cmd.valid, 1)
+    SimMemUntilDone()
+  }
+  def printMem() = {
+    println(s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
+  }
+
+  // setup random memory state
+  val rand = scala.util.Random
+  val priorities: Array[Array[Int]] = Array.fill(heapSize)(Array(Math.pow(2,cyclicWidth).toInt-1,Math.pow(2,normalWidth).toInt-1))
+  val prioritiesOriginal = priorities.map(_.clone())
+  // create 3d array. First index is RAM address, 2nd index selects element at RAM address, 3rd selects cyclic or normal priority value
+  val Mem: Array[Array[Array[Int]]] = priorities.slice(1,priorities.length).sliding(childrenCount,childrenCount).toArray.map(_.map(_.clone()))
+
+  // setup inputs of dut
+  poke(dut.io.cmd.valid, false)
+  poke(dut.io.cmd.op,1)
+  poke(dut.io.cmd.refID,0)
+  //val toBeInserted = Seq.fill(4)(Array(rand.nextInt(Math.pow(2,cyclicWidth).toInt), rand.nextInt(Math.pow(2,normalWidth).toInt)))
+  val toBeInserted = Array(Array(2,55),Array(2,45),Array(0,240),Array(1,2))
+  for(i <- 0 until 4) {
+    insert(i,toBeInserted(i)(0),toBeInserted(i)(1))
+  }
+
   poke(dut.io.cmd.valid, 0)
   println(s"Inserted ${toBeInserted.map(_.mkString(":")).mkString(", ")}")
   println(s"Head of queue is ${peek(dut.io.head.prio).mkString(", ")}")
@@ -84,17 +95,29 @@ private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize
   expect(dut.io.head.prio.norm, expected(1))
   expect(dut.io.head.prio.cycl, expected(0))
 
-  println(s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
+  printMem()
 
-  poke(dut.io.cmd.op, 0)
-  poke(dut.io.cmd.refID, 0)
-  poke(dut.io.cmd.valid, 1)
-  var iterations = 0
-  while(peek(dut.io.cmd.done).toInt != 1 && iterations < 2){
-    iterations += 1
-    step(1)
-  }
-  println(s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
+  remove(0)
+  printMem()
+
+  insert(4,3,124)
+  printMem()
+
+  remove(2)
+  printMem()
+
+  remove(0)
+  printMem()
+
+  remove(1)
+  printMem()
+
+  remove(0)
+  printMem()
+
+  insert(1,0,21)
+  printMem()
+
 }
 
 class PriorityQueueTests extends FlatSpec with Matchers {
@@ -102,8 +125,8 @@ class PriorityQueueTests extends FlatSpec with Matchers {
   val cyclicWidth = 2
   val heapSize = 17
   val childrenCount = 4
-  val referenceWidth = 2
-  val debugOutput = true
+  val referenceWidth = 5
+  val debugOutput = false
   "HeapPrioQ" should "pass" in {
     chisel3.iotesters.Driver(() => new HeapPrioQ(heapSize,childrenCount,normalWidth,cyclicWidth,referenceWidth)) {
       c => new Test1(c,normalWidth,cyclicWidth,heapSize,childrenCount,referenceWidth,debugOutput)

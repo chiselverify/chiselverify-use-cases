@@ -31,7 +31,7 @@ class MinFinder(n: Int, normalPriorityWidth : Int, cyclicPriorityWidth : Int) ex
   // create a reduced tree structure to find the minimum value
   // lowest cyclic priority wins
   // if cyclic priorities are equal the normal priority decides
-  val res = inDup.reduceTree((x: Dup, y: Dup) => Mux((x.v.cycl<y.v.cycl)||(x.v.cycl===y.v.cycl && x.v.norm < y.v.norm),x,y))
+  val res = inDup.reduceTree((x: Dup, y: Dup) => Mux((x.v.cycl<y.v.cycl) || (x.v.cycl===y.v.cycl && (x.v.norm < y.v.norm || (x.v.norm===y.v.norm && x.idx<y.idx))),x,y))
 
   io.res := res.v
   io.idx := res.idx
