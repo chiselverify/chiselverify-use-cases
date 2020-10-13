@@ -1,8 +1,9 @@
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest._
+import old._
 
-
-class MinimumFinderTester(dut: MinFinder, n: Int, w: Int, testPasses: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
+/*
+class MinimumFinderTester(dut: MinimumFinder, n: Int, w: Int, testPasses: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
   /////////////////////////////////// helper methods ///////////////////////////////////
   def populatedList(): Array[BigInt] = {
     val rand = scala.util.Random
@@ -35,9 +36,10 @@ class MinimumFinderTester(dut: MinFinder, n: Int, w: Int, testPasses: Int, debug
 class MinimumFinderTest extends FlatSpec with Matchers {
   val n = 30 // note that simulation will not work for n>30 due to some datatype max value issues
   val w = 8
+  val rWid = 3
   val testPasses = 100
   val debugOutput = false
   "old.MinimumFinder" should "identify all minimum values" in {
-    chisel3.iotesters.Driver(() => new MinFinder(n,w,2)) { c => new MinimumFinderTester(c,n,w,testPasses,debugOutput) } should be(true)
+    chisel3.iotesters.Driver(() => new MinimumFinder(n,w)) { c => new MinimumFinderTester(c,n,w,testPasses,debugOutput) } should be(true)
   }
-}
+}*/

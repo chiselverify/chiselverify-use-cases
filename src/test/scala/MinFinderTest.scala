@@ -9,8 +9,8 @@ class MinFinderTester(dut: MinFinder, normalPriorityWidth: Int, cyclicPriorityWi
   }
   def applyVec(list: Array[Array[BigInt]]) = {
     for(i <- 0 until n){
-      poke(dut.io.values(i).cycl,list(i)(0))
-      poke(dut.io.values(i).norm,list(i)(1))
+      poke(dut.io.values(i).prio.cycl,list(i)(0))
+      poke(dut.io.values(i).prio.norm,list(i)(1))
     }
   }
   def calculateOut(list: Array[Array[BigInt]]): BigInt = {
@@ -37,14 +37,15 @@ class MinFinderTester(dut: MinFinder, normalPriorityWidth: Int, cyclicPriorityWi
 }
 
 class MinFinderTest extends FlatSpec with Matchers {
-  val normalPriorityWidth = 25
-  val cyclicPriorityWidth = 2
+  val nWid = 25
+  val cWid = 2
+  val rWid = 3
   val numberOfValues = 8
   val testPasses = 500
   val debugOutput = false
   "old.PriorityMinimumFinder" should "identify minimum value with the lowest index" in {
-    chisel3.iotesters.Driver(() => new MinFinder(numberOfValues, normalPriorityWidth, cyclicPriorityWidth)) {
-      c => new MinFinderTester(c,normalPriorityWidth,cyclicPriorityWidth,numberOfValues,testPasses,debugOutput)
+    chisel3.iotesters.Driver(() => new MinFinder(numberOfValues, nWid, cWid, rWid)) {
+      c => new MinFinderTester(c,nWid,cWid,numberOfValues,testPasses,debugOutput)
     } should be(true)
   }
 }

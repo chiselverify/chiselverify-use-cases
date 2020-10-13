@@ -1,3 +1,4 @@
+/*
 import Behavioural.heapifyUp
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest.{FlatSpec, Matchers}
@@ -110,3 +111,4 @@ class PriorityQueueTests extends FlatSpec with Matchers {
     } should be(true)
   }
 }
+*/

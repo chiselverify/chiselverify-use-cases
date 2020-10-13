@@ -6,18 +6,18 @@ import lib._
  * Determines the smallest priority with the lowest index among the input values.
  * Outputs both the value and index
  * @param n number of priorities to compare
- * @param normalPriorityWidth width of the normal priority field
- * @param cyclicPriorityWidth width of the cyclic priority field
+ * @param nWid width of the normal priority field
+ * @param cWid width of the cyclic priority field
  */
-class MinFinder(n: Int, normalPriorityWidth : Int, cyclicPriorityWidth : Int) extends Module{
+class MinFinder(n: Int, nWid: Int, cWid: Int, rWid: Int) extends Module{
   val io = IO(new Bundle{
-    val values = Input(Vec(n, new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)))
-    val res = Output(new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth))
+    val values = Input(Vec(n, new PriorityAndID(nWid,cWid,rWid)))
+    val res = Output(new PriorityAndID(nWid,cWid,rWid))
     val idx = Output(UInt(log2Ceil(n).W))
   })
 
   class Dup extends Bundle {
-    val v = new PriorityBundle(normalPriorityWidth,cyclicPriorityWidth)
+    val v = new PriorityAndID(nWid,cWid,rWid)
     val idx = UInt(log2Ceil(n).W)
   }
 
@@ -31,7 +31,7 @@ class MinFinder(n: Int, normalPriorityWidth : Int, cyclicPriorityWidth : Int) ex
   // create a reduced tree structure to find the minimum value
   // lowest cyclic priority wins
   // if cyclic priorities are equal the normal priority decides
-  val res = inDup.reduceTree((x: Dup, y: Dup) => Mux((x.v.cycl<y.v.cycl)||(x.v.cycl===y.v.cycl && x.v.norm < y.v.norm),x,y))
+  val res = inDup.reduceTree((x: Dup, y: Dup) => Mux((x.v.prio.cycl<y.v.prio.cycl)||(x.v.prio.cycl===y.v.prio.cycl && x.v.prio.norm < y.v.prio.norm),x,y))
 
   io.res := res.v
   io.idx := res.idx

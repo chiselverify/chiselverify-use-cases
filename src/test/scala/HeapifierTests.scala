@@ -1,7 +1,7 @@
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest.{FlatSpec, Matchers}
 import Behavioural._
-
+/*
 private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, heapSize: Int, childrenCount: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
 
   // setup random memory state
@@ -195,4 +195,4 @@ class HeapifierTest extends FlatSpec with Matchers {
     } should be(true)
   }
 
-}
+}*/
