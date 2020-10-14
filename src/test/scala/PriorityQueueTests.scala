@@ -1,6 +1,100 @@
 import Behavioural.heapifyUp
+import chisel3._
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest.{FlatSpec, Matchers}
+
+private class PrioWrapper(dut: HeapPrioQ, size: Int, chCount: Int) extends PeekPokeTester(dut){
+  var pipedRdAddr = 0
+  var pipedWrAddr = 0
+  var searchSimDelay = 0
+  val mem = Array.ofDim[Int](size/chCount,chCount,3)
+  def stepDut(n: Int) : Unit = {
+    for(i <- 0 until n){
+      // read port
+      try {
+        for (i <- 0 until chCount) {
+          // ignores reads outside of array
+          poke(dut.io.rdPort.data(i).prio.cycl, mem(pipedRdAddr)(i)(0))
+          poke(dut.io.rdPort.data(i).prio.norm, mem(pipedRdAddr)(i)(1))
+          poke(dut.io.rdPort.data(i).id, mem(pipedRdAddr)(i)(2))
+        }
+      } catch {
+        case e: IndexOutOfBoundsException => {}
+      }
+      // write port
+      if (peek(dut.io.wrPort.write) == 1) {
+        for (i <- 0 until chCount) {
+          if((peek(dut.io.wrPort.mask) & (BigInt(1) << i)) != 0){
+            mem(pipedWrAddr)(i)(0) = peek(dut.io.wrPort.data(i).prio.cycl).toInt
+            mem(pipedWrAddr)(i)(1) = peek(dut.io.wrPort.data(i).prio.norm).toInt
+            mem(pipedWrAddr)(i)(2) = peek(dut.io.wrPort.data(i).id).toInt
+          }
+        }
+      }
+      // search port
+      if(peek(dut.io.srch.search)==1){
+        if(searchSimDelay > 10){
+          val idx = mem.flatten.map(_(2)==peek(dut.io.srch.refID)).indexOf(true)
+          if(idx == -1){
+            poke(dut.io.srch.error, 1)
+          }else{
+            poke(dut.io.srch.res, idx)
+          }
+          poke(dut.io.srch.done, 1)
+          searchSimDelay = 0
+        }else{
+          poke(dut.io.srch.done, 0)
+          poke(dut.io.srch.error, 0)
+          searchSimDelay += 1
+        }
+      }else{
+        searchSimDelay = 0
+      }
+      // simulate synchronous memory
+      pipedRdAddr = peek(dut.io.rdPort.address).toInt
+      pipedWrAddr = peek(dut.io.wrPort.address).toInt
+
+      if (debugOutput) {
+        println(s"States: ${peek(dut.io.debug.state)} || ${peek(dut.io.debug.heapifierState)} at index ${peek(dut.io.debug.heapifierIndex)}\n"+
+          s"ReadPort: ${peek(dut.io.rdPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
+          s"WritePort: ${peek(dut.io.wrPort.address)} | ${peek(dut.io.wrPort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.wrPort.write)}\n"+
+          s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
+      }
+
+      step(1)
+    }
+  }
+  def stepUntilDone() : Unit = {
+    while(peek(dut.io.cmd.done)==0){
+      stepDut(1)
+    }
+  }
+  def pokeID(id: Int) : Unit = {
+    poke(dut.io.cmd.refID, id)
+  }
+  def pokePriority(n: Int, c: Int) : Unit = {
+    poke(dut.io.cmd.prio.norm,n)
+    poke(dut.io.cmd.prio.cycl,c)
+  }
+  def pokePrioAndID(n: Int, c: Int, id: Int) : Unit = {
+    pokePriority(n,c)
+    pokeID(id)
+  }
+  def insert(n: Int, c: Int, id: Int) : Unit = {
+    pokePrioAndID(n,c,id)
+    poke(dut.io.cmd.op, 1)
+    poke(dut.io.cmd.valid,1)
+    stepUntilDone()
+    poke(dut.io.cmd.valid,0)
+  }
+  def remove(id: Int) : Unit = {
+    pokeID(id)
+    poke(dut.io.cmd.op, 0)
+    poke(dut.io.cmd.valid,1)
+    stepUntilDone()
+    poke(dut.io.cmd.valid, 0)
+  }
+}
 
 private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize: Int, childrenCount: Int, referenceWidth: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
 
@@ -13,7 +107,7 @@ private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize
     }
     return smallest
   }
-  def SimMemUntilDone() = {
+  def SimMemUntilDone(Mem: Array[Array[Array[Int]]]) = {
     var lastReadAddr = 0
     var lastWriteAddr = 0
     var iterations = 0
@@ -22,30 +116,29 @@ private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize
       try {
         for (i <- 0 until childrenCount) {
           // ignores reads outside of array
-          poke(dut.io.ramReadPort.data(i).cycl, Mem(lastReadAddr)(i)(0))
-          poke(dut.io.ramReadPort.data(i).norm, Mem(lastReadAddr)(i)(1))
+          poke(dut.io.rdPort.data(i).prio.cycl, Mem(lastReadAddr)(i)(0))
+          poke(dut.io.rdPort.data(i).prio.norm, Mem(lastReadAddr)(i)(1))
+          poke(dut.io.rdPort.data(i).id, Mem(lastReadAddr)(i)(2))
         }
       } catch {
         case e: IndexOutOfBoundsException => {}
       }
       // catch writes
-      if (peek(dut.io.ramWritePort.write) == 1) {
+      if (peek(dut.io.wrPort.write) == 1) {
         for (i <- 0 until childrenCount) {
-          Mem(lastWriteAddr)(i)(0) = peek(dut.io.ramWritePort.data(i).cycl).toInt
-          Mem(lastWriteAddr)(i)(1) = peek(dut.io.ramWritePort.data(i).norm).toInt
+          if((peek(dut.io.wrPort.mask) & (BigInt(1) << i)) != 0){
+            Mem(lastWriteAddr)(i)(0) = peek(dut.io.wrPort.data(i).prio.cycl).toInt
+            Mem(lastWriteAddr)(i)(1) = peek(dut.io.wrPort.data(i).prio.norm).toInt
+            Mem(lastWriteAddr)(i)(2) = peek(dut.io.wrPort.data(i).id).toInt
+          }
         }
       }
       // simulate synchronous memory
-      lastReadAddr = peek(dut.io.ramReadPort.address).toInt
-      lastWriteAddr = peek(dut.io.ramWritePort.address).toInt
+      lastReadAddr = peek(dut.io.rdPort.address).toInt
+      lastWriteAddr = peek(dut.io.wrPort.address).toInt
       step(1)
       // print states
-      if (debugOutput) {
-        println(s"States: ${peek(dut.io.debug.state)} || ${peek(dut.io.debug.heapifierState)} at index ${peek(dut.io.debug.heapifierIndex)}\n"+
-          s"ReadPort: ${peek(dut.io.ramReadPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
-          s"WritePort: ${peek(dut.io.ramWritePort.address)} | ${peek(dut.io.ramWritePort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.ramWritePort.write)}\n"+
-          s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
-      }
+
       iterations += 1
     }
     poke(dut.io.cmd.valid, 0)

@@ -26,7 +26,7 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
   heapifyUp(priorities, childrenCount, heapSize, index)
 
   // setup inputs of dut
-  poke(dut.io.control.index, index)
+  poke(dut.io.control.idx, index)
   poke(dut.io.control.heapifyDown,false)
   poke(dut.io.control.heapifyUp,true)
   poke(dut.io.headPort.rdData.cycl,root(0))
@@ -40,17 +40,17 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
     for(i <- 0 until childrenCount){
       // ignores reads outside of array
       try {
-        poke(dut.io.ramReadPort.data(i).cycl, Mem(lastReadAddr)(i)(0))
-        poke(dut.io.ramReadPort.data(i).norm, Mem(lastReadAddr)(i)(1))
+        poke(dut.io.rdPort.data(i).cycl, Mem(lastReadAddr)(i)(0))
+        poke(dut.io.rdPort.data(i).norm, Mem(lastReadAddr)(i)(1))
       }catch{
         case e: IndexOutOfBoundsException => {}
       }
     }
     // catch writes
-    if(peek(dut.io.ramWritePort.write)==1){
+    if(peek(dut.io.wrPort.write)==1){
       for(i <- 0 until childrenCount){
-        Mem(lastWriteAddr)(i)(0) = peek(dut.io.ramWritePort.data(i).cycl).toInt
-        Mem(lastWriteAddr)(i)(1) = peek(dut.io.ramWritePort.data(i).norm).toInt
+        Mem(lastWriteAddr)(i)(0) = peek(dut.io.wrPort.data(i).cycl).toInt
+        Mem(lastWriteAddr)(i)(1) = peek(dut.io.wrPort.data(i).norm).toInt
       }
     }
     // catch writes to head element
@@ -61,16 +61,16 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
     // print states
     if(debugOutput){
       println(s"\nstate: ${peek(dut.io.state)} | index: ${peek(dut.io.indexOut)} | nextIndex: ${peek(dut.io.nextIndexOut)}\n"+
-      s"ReadPort: ${peek(dut.io.ramReadPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
-      s"WritePort: ${peek(dut.io.ramWritePort.address)} | ${peek(dut.io.ramWritePort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.ramWritePort.write)}\n"+
+      s"ReadPort: ${peek(dut.io.rdPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
+      s"WritePort: ${peek(dut.io.wrPort.address)} | ${peek(dut.io.wrPort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.wrPort.write)}\n"+
       s"MinInput: ${peek(dut.io.minInputs).sliding(2,2).map(_.mkString(":")).mkString(", ")} | ${peek(dut.io.out)}\n"+
       s"parentOffset: ${peek(dut.io.parentOff)}\n"+
       s"Memory:\n${root.mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
     }
 
     // simulate synchronous memory
-    lastReadAddr = peek(dut.io.ramReadPort.address).toInt
-    lastWriteAddr = peek(dut.io.ramWritePort.address).toInt
+    lastReadAddr = peek(dut.io.rdPort.address).toInt
+    lastWriteAddr = peek(dut.io.wrPort.address).toInt
 
     // catch components done signal
     if(peek(dut.io.control.done).toInt == 1 && iterations > 2){
@@ -114,7 +114,7 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
   heapifyDown(priorities, childrenCount, heapSize, index)
 
   // setup inputs of dut
-  poke(dut.io.control.index, index)
+  poke(dut.io.control.idx, index)
   poke(dut.io.control.heapifyDown,true)
   poke(dut.io.control.heapifyUp,false)
   poke(dut.io.headPort.rdData.cycl,root(0))
@@ -128,17 +128,17 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
     for(i <- 0 until childrenCount){
       // ignores reads outside of array
       try {
-        poke(dut.io.ramReadPort.data(i).cycl, Mem(lastReadAddr)(i)(0))
-        poke(dut.io.ramReadPort.data(i).norm, Mem(lastReadAddr)(i)(1))
+        poke(dut.io.rdPort.data(i).cycl, Mem(lastReadAddr)(i)(0))
+        poke(dut.io.rdPort.data(i).norm, Mem(lastReadAddr)(i)(1))
       }catch{
         case e: IndexOutOfBoundsException => {}
       }
     }
     // catch writes
-    if(peek(dut.io.ramWritePort.write)==1){
+    if(peek(dut.io.wrPort.write)==1){
       for(i <- 0 until childrenCount){
-        Mem(lastWriteAddr)(i)(0) = peek(dut.io.ramWritePort.data(i).cycl).toInt
-        Mem(lastWriteAddr)(i)(1) = peek(dut.io.ramWritePort.data(i).norm).toInt
+        Mem(lastWriteAddr)(i)(0) = peek(dut.io.wrPort.data(i).cycl).toInt
+        Mem(lastWriteAddr)(i)(1) = peek(dut.io.wrPort.data(i).norm).toInt
       }
     }
     // catch writes to head element
@@ -150,16 +150,16 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
     // print states
     if(debugOutput){
       println(s"\nstate: ${peek(dut.io.state)} | index: ${peek(dut.io.indexOut)} | nextIndex: ${peek(dut.io.nextIndexOut)}\n"+
-        s"ReadPort: ${peek(dut.io.ramReadPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
-        s"WritePort: ${peek(dut.io.ramWritePort.address)} | ${peek(dut.io.ramWritePort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.ramWritePort.write)}\n"+
+        s"ReadPort: ${peek(dut.io.rdPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
+        s"WritePort: ${peek(dut.io.wrPort.address)} | ${peek(dut.io.wrPort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.wrPort.write)}\n"+
         s"MinInput: ${peek(dut.io.minInputs).sliding(2,2).map(_.mkString(":")).mkString(", ")} | ${peek(dut.io.out)}\n"+
         s"parentOffset: ${peek(dut.io.parentOff)}\n"+
         s"Memory:\n${root.mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
     }
 
     // simulate synchronous memory
-    lastReadAddr = peek(dut.io.ramReadPort.address).toInt
-    lastWriteAddr = peek(dut.io.ramWritePort.address).toInt
+    lastReadAddr = peek(dut.io.rdPort.address).toInt
+    lastWriteAddr = peek(dut.io.wrPort.address).toInt
 
     // catch components done signal
     if(peek(dut.io.control.done).toInt == 1 && iterations > 2){
@@ -181,19 +181,20 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
 }
 
 class HeapifierTest extends FlatSpec with Matchers {
-  val normalWidth = 8
-  val cyclicWidth = 2
+  val nWid = 8
+  val cWid = 2
+  val rWid = 4
   val heapSize = 16
-  val childrenCount = 4
+  val chCount = 4
   val debugOutput = false
   "Heapifier" should "heapify up" in {
-    chisel3.iotesters.Driver(() => new Heapifier(heapSize,childrenCount,normalWidth,cyclicWidth)) {
-      c => new HeapifyUpTest(c,normalWidth,cyclicWidth,heapSize,childrenCount,debugOutput)
+    chisel3.iotesters.Driver(() => new Heapifier(heapSize,chCount,nWid,cWid,rWid)) {
+      c => new HeapifyUpTest(c,nWid,cWid,heapSize,chCount,debugOutput)
     } should be(true)
   }
   "Heapifier" should "heapify down" in {
-    chisel3.iotesters.Driver(() => new Heapifier(heapSize,childrenCount,normalWidth,cyclicWidth)) {
-      c => new HeapifyDownTest(c,normalWidth,cyclicWidth,heapSize,childrenCount,debugOutput)
+    chisel3.iotesters.Driver(() => new Heapifier(heapSize,chCount,nWid,cWid,rWid)) {
+      c => new HeapifyDownTest(c,nWid,cWid,heapSize,chCount,debugOutput)
     } should be(true)
   }
 
