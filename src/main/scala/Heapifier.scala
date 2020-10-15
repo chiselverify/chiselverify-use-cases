@@ -3,18 +3,19 @@ import chisel3.util._
 import lib._
 
 /**
- * Component implementing the heapify algorithm. Works itself either upwards or downwards
+ * Component implementing the algorithm to create a min-heap. Works itself either upwards or downwards
  * through the heap from a given start index and swaps elements to
  * satisfy the min-heap condition.
  *
  * During operation either of the control signals heapifyUp or heapifyDown need to be held high
  * until done is asserted.
  *
- * When done is asserted, the component also signalizes whether a swap has taken place for that clock cycle
+ * When done is asserted, the component also signalizes whether a swap has taken place
  * @param size the size of the heap
  * @param chCount the number of children per node (must be power of 2)
  * @param nWid the width of the normal priority
  * @param cWid the width of the cyclic priority
+ * @param rWid the width of the reference ID
  */
 class Heapifier(
                  size : Int, // max number of elements in queue
@@ -34,7 +35,7 @@ class Heapifier(
     }
 
     val rdPort = new rdPort(log2Ceil(size/chCount),Vec(chCount,new PriorityAndID(nWid,cWid,rWid)))
-    val wrPort = new wrPort(log2Ceil(size/chCount),log2Ceil(chCount),Vec(chCount,new PriorityAndID(nWid,cWid,rWid)))
+    val wrPort = new wrPort(log2Ceil(size/chCount),chCount,Vec(chCount,new PriorityAndID(nWid,cWid,rWid)))
 
     // port to the cached head element stored in a register
     val headPort = new Bundle{
@@ -47,7 +48,7 @@ class Heapifier(
     val out = Output(UInt((log2Ceil(chCount)+1).W))
     val swap = Output(Bool())
     val state = Output(UInt())
-    val minInputs = Output(Vec(chCount+1,new Priority(nWid,cWid)))
+    val minInputs = Output(Vec(chCount+1,new PriorityAndID(nWid,cWid,rWid)))
     val parentOff = Output(UInt(log2Ceil(size).W))
     val nextIndexOut = Output(UInt(log2Ceil(size).W))
     val indexOut = Output(UInt(log2Ceil(size).W))
@@ -95,6 +96,7 @@ class Heapifier(
   io.wrPort.address := 0.U
   io.wrPort.data := childrenReg
   io.wrPort.write := false.B
+  io.wrPort.mask := VecInit(Seq.fill(chCount)(true.B)).asUInt
   io.headPort.write := false.B
   io.headPort.wrData := parentReg(0)
 
@@ -115,10 +117,11 @@ class Heapifier(
     is(idle){ // in idle we wait for a control signal, update out index register, and hold the swapped flag low
       io.control.done := true.B
       indexReg := io.control.idx
-      swappedReg := false.B
       when(io.control.heapifyUp){
+        swappedReg := false.B
         stateReg := warmUp1
       }.elsewhen(io.control.heapifyDown){
+        swappedReg := false.B
         stateReg := warmDown1
       }.otherwise{
         stateReg := idle

@@ -29,8 +29,8 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
   poke(dut.io.control.idx, index)
   poke(dut.io.control.heapifyDown,false)
   poke(dut.io.control.heapifyUp,true)
-  poke(dut.io.headPort.rdData.cycl,root(0))
-  poke(dut.io.headPort.rdData.norm,root(1))
+  poke(dut.io.headPort.rdData.prio.cycl,root(0))
+  poke(dut.io.headPort.rdData.prio.norm,root(1))
   poke(dut.io.control.heapSize,heapSize)
 
   // loop variables
@@ -40,8 +40,8 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
     for(i <- 0 until childrenCount){
       // ignores reads outside of array
       try {
-        poke(dut.io.rdPort.data(i).cycl, Mem(lastReadAddr)(i)(0))
-        poke(dut.io.rdPort.data(i).norm, Mem(lastReadAddr)(i)(1))
+        poke(dut.io.rdPort.data(i).prio.cycl, Mem(lastReadAddr)(i)(0))
+        poke(dut.io.rdPort.data(i).prio.norm, Mem(lastReadAddr)(i)(1))
       }catch{
         case e: IndexOutOfBoundsException => {}
       }
@@ -49,14 +49,14 @@ private class HeapifyUpTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int, 
     // catch writes
     if(peek(dut.io.wrPort.write)==1){
       for(i <- 0 until childrenCount){
-        Mem(lastWriteAddr)(i)(0) = peek(dut.io.wrPort.data(i).cycl).toInt
-        Mem(lastWriteAddr)(i)(1) = peek(dut.io.wrPort.data(i).norm).toInt
+        Mem(lastWriteAddr)(i)(0) = peek(dut.io.wrPort.data(i).prio.cycl).toInt
+        Mem(lastWriteAddr)(i)(1) = peek(dut.io.wrPort.data(i).prio.norm).toInt
       }
     }
     // catch writes to head element
     if(peek(dut.io.headPort.write).toInt == 1){
-      root(0) = peek(dut.io.headPort.wrData.cycl).toInt
-      root(1) = peek(dut.io.headPort.wrData.norm).toInt
+      root(0) = peek(dut.io.headPort.wrData.prio.cycl).toInt
+      root(1) = peek(dut.io.headPort.wrData.prio.norm).toInt
     }
     // print states
     if(debugOutput){
@@ -117,8 +117,8 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
   poke(dut.io.control.idx, index)
   poke(dut.io.control.heapifyDown,true)
   poke(dut.io.control.heapifyUp,false)
-  poke(dut.io.headPort.rdData.cycl,root(0))
-  poke(dut.io.headPort.rdData.norm,root(1))
+  poke(dut.io.headPort.rdData.prio.cycl,root(0))
+  poke(dut.io.headPort.rdData.prio.norm,root(1))
   poke(dut.io.control.heapSize,heapSize)
 
   // loop variables
@@ -128,8 +128,8 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
     for(i <- 0 until childrenCount){
       // ignores reads outside of array
       try {
-        poke(dut.io.rdPort.data(i).cycl, Mem(lastReadAddr)(i)(0))
-        poke(dut.io.rdPort.data(i).norm, Mem(lastReadAddr)(i)(1))
+        poke(dut.io.rdPort.data(i).prio.cycl, Mem(lastReadAddr)(i)(0))
+        poke(dut.io.rdPort.data(i).prio.norm, Mem(lastReadAddr)(i)(1))
       }catch{
         case e: IndexOutOfBoundsException => {}
       }
@@ -137,15 +137,15 @@ private class HeapifyDownTest(dut: Heapifier, normalWidth: Int, cyclicWidth: Int
     // catch writes
     if(peek(dut.io.wrPort.write)==1){
       for(i <- 0 until childrenCount){
-        Mem(lastWriteAddr)(i)(0) = peek(dut.io.wrPort.data(i).cycl).toInt
-        Mem(lastWriteAddr)(i)(1) = peek(dut.io.wrPort.data(i).norm).toInt
+        Mem(lastWriteAddr)(i)(0) = peek(dut.io.wrPort.data(i).prio.cycl).toInt
+        Mem(lastWriteAddr)(i)(1) = peek(dut.io.wrPort.data(i).prio.norm).toInt
       }
     }
     // catch writes to head element
     if(peek(dut.io.headPort.write).toInt == 1){
       println("head write")
-      root(0) = peek(dut.io.headPort.wrData.cycl).toInt
-      root(1) = peek(dut.io.headPort.wrData.norm).toInt
+      root(0) = peek(dut.io.headPort.wrData.prio.cycl).toInt
+      root(1) = peek(dut.io.headPort.wrData.prio.norm).toInt
     }
     // print states
     if(debugOutput){

@@ -3,226 +3,41 @@ import chisel3._
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest.{FlatSpec, Matchers}
 
-private class PrioWrapper(dut: HeapPrioQ, size: Int, chCount: Int) extends PeekPokeTester(dut){
-  var pipedRdAddr = 0
-  var pipedWrAddr = 0
-  var searchSimDelay = 0
-  val mem = Array.ofDim[Int](size/chCount,chCount,3)
-  def stepDut(n: Int) : Unit = {
-    for(i <- 0 until n){
-      // read port
-      try {
-        for (i <- 0 until chCount) {
-          // ignores reads outside of array
-          poke(dut.io.rdPort.data(i).prio.cycl, mem(pipedRdAddr)(i)(0))
-          poke(dut.io.rdPort.data(i).prio.norm, mem(pipedRdAddr)(i)(1))
-          poke(dut.io.rdPort.data(i).id, mem(pipedRdAddr)(i)(2))
-        }
-      } catch {
-        case e: IndexOutOfBoundsException => {}
-      }
-      // write port
-      if (peek(dut.io.wrPort.write) == 1) {
-        for (i <- 0 until chCount) {
-          if((peek(dut.io.wrPort.mask) & (BigInt(1) << i)) != 0){
-            mem(pipedWrAddr)(i)(0) = peek(dut.io.wrPort.data(i).prio.cycl).toInt
-            mem(pipedWrAddr)(i)(1) = peek(dut.io.wrPort.data(i).prio.norm).toInt
-            mem(pipedWrAddr)(i)(2) = peek(dut.io.wrPort.data(i).id).toInt
-          }
-        }
-      }
-      // search port
-      if(peek(dut.io.srch.search)==1){
-        if(searchSimDelay > 10){
-          val idx = mem.flatten.map(_(2)==peek(dut.io.srch.refID)).indexOf(true)
-          if(idx == -1){
-            poke(dut.io.srch.error, 1)
-          }else{
-            poke(dut.io.srch.res, idx)
-          }
-          poke(dut.io.srch.done, 1)
-          searchSimDelay = 0
-        }else{
-          poke(dut.io.srch.done, 0)
-          poke(dut.io.srch.error, 0)
-          searchSimDelay += 1
-        }
-      }else{
-        searchSimDelay = 0
-      }
-      // simulate synchronous memory
-      pipedRdAddr = peek(dut.io.rdPort.address).toInt
-      pipedWrAddr = peek(dut.io.wrPort.address).toInt
-
-      if (debugOutput) {
-        println(s"States: ${peek(dut.io.debug.state)} || ${peek(dut.io.debug.heapifierState)} at index ${peek(dut.io.debug.heapifierIndex)}\n"+
-          s"ReadPort: ${peek(dut.io.rdPort.address)} | ${Mem.apply(lastReadAddr).map(_.mkString(":")).mkString(",")}\n"+
-          s"WritePort: ${peek(dut.io.wrPort.address)} | ${peek(dut.io.wrPort.data).sliding(2,2).map(_.mkString(":")).mkString(",")} | ${peek(dut.io.wrPort.write)}\n"+
-          s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
-      }
-
-      step(1)
-    }
-  }
-  def stepUntilDone() : Unit = {
-    while(peek(dut.io.cmd.done)==0){
-      stepDut(1)
-    }
-  }
-  def pokeID(id: Int) : Unit = {
-    poke(dut.io.cmd.refID, id)
-  }
-  def pokePriority(n: Int, c: Int) : Unit = {
-    poke(dut.io.cmd.prio.norm,n)
-    poke(dut.io.cmd.prio.cycl,c)
-  }
-  def pokePrioAndID(n: Int, c: Int, id: Int) : Unit = {
-    pokePriority(n,c)
-    pokeID(id)
-  }
-  def insert(n: Int, c: Int, id: Int) : Unit = {
-    pokePrioAndID(n,c,id)
-    poke(dut.io.cmd.op, 1)
-    poke(dut.io.cmd.valid,1)
-    stepUntilDone()
-    poke(dut.io.cmd.valid,0)
-  }
-  def remove(id: Int) : Unit = {
-    pokeID(id)
-    poke(dut.io.cmd.op, 0)
-    poke(dut.io.cmd.valid,1)
-    stepUntilDone()
-    poke(dut.io.cmd.valid, 0)
-  }
-}
-
-private class Test1(dut: HeapPrioQ, normalWidth: Int, cyclicWidth: Int, heapSize: Int, childrenCount: Int, referenceWidth: Int, debugOutput: Boolean) extends PeekPokeTester(dut) {
-
-  def findSmallest(arr: Seq[Array[Int]], normalWid: Int, cyclicWid: Int) : Array[Int] = {
-    var smallest = arr.head
-    for(item <- arr){
-      if(item(0)<smallest(0) || (item(0)==smallest(0) && item(1)<smallest(1))){
-        smallest = item
-      }
-    }
-    return smallest
-  }
-  def SimMemUntilDone(Mem: Array[Array[Array[Int]]]) = {
-    var lastReadAddr = 0
-    var lastWriteAddr = 0
-    var iterations = 0
-    while (peek(dut.io.cmd.done).toInt == 0 || iterations < 1) {
-
-      try {
-        for (i <- 0 until childrenCount) {
-          // ignores reads outside of array
-          poke(dut.io.rdPort.data(i).prio.cycl, Mem(lastReadAddr)(i)(0))
-          poke(dut.io.rdPort.data(i).prio.norm, Mem(lastReadAddr)(i)(1))
-          poke(dut.io.rdPort.data(i).id, Mem(lastReadAddr)(i)(2))
-        }
-      } catch {
-        case e: IndexOutOfBoundsException => {}
-      }
-      // catch writes
-      if (peek(dut.io.wrPort.write) == 1) {
-        for (i <- 0 until childrenCount) {
-          if((peek(dut.io.wrPort.mask) & (BigInt(1) << i)) != 0){
-            Mem(lastWriteAddr)(i)(0) = peek(dut.io.wrPort.data(i).prio.cycl).toInt
-            Mem(lastWriteAddr)(i)(1) = peek(dut.io.wrPort.data(i).prio.norm).toInt
-            Mem(lastWriteAddr)(i)(2) = peek(dut.io.wrPort.data(i).id).toInt
-          }
-        }
-      }
-      // simulate synchronous memory
-      lastReadAddr = peek(dut.io.rdPort.address).toInt
-      lastWriteAddr = peek(dut.io.wrPort.address).toInt
-      step(1)
-      // print states
-
-      iterations += 1
-    }
-    poke(dut.io.cmd.valid, 0)
-  }
-
-  def insert(id: Int, cycl: Int, norm: Int): Unit ={
-    println(s"Inserting $id:$cycl:$norm")
-    poke(dut.io.cmd.op, 1)
-    poke(dut.io.cmd.prio.cycl, cycl)
-    poke(dut.io.cmd.prio.norm, norm)
-    poke(dut.io.cmd.refID, id)
-    poke(dut.io.cmd.valid, 1)
-    SimMemUntilDone()
-  }
-  def remove(id: Int): Unit ={
-    println(s"Removing at index $id")
-    poke(dut.io.cmd.op, 0)
-    poke(dut.io.cmd.refID, id)
-    poke(dut.io.cmd.valid, 1)
-    SimMemUntilDone()
-  }
-  def printMem() = {
-    println(s"Memory:\n${peek(dut.io.head.prio).mkString(":")}\n${Mem.map(_.map(_.mkString(":")).mkString(", ")).mkString("\n")}")
-  }
-
-  // setup random memory state
-  val rand = scala.util.Random
-  val priorities: Array[Array[Int]] = Array.fill(heapSize)(Array(Math.pow(2,cyclicWidth).toInt-1,Math.pow(2,normalWidth).toInt-1))
-  val prioritiesOriginal = priorities.map(_.clone())
-  // create 3d array. First index is RAM address, 2nd index selects element at RAM address, 3rd selects cyclic or normal priority value
-  val Mem: Array[Array[Array[Int]]] = priorities.slice(1,priorities.length).sliding(childrenCount,childrenCount).toArray.map(_.map(_.clone()))
-
-  // setup inputs of dut
-  poke(dut.io.cmd.valid, false)
-  poke(dut.io.cmd.op,1)
-  poke(dut.io.cmd.refID,0)
-  //val toBeInserted = Seq.fill(4)(Array(rand.nextInt(Math.pow(2,cyclicWidth).toInt), rand.nextInt(Math.pow(2,normalWidth).toInt)))
-  val toBeInserted = Array(Array(2,55),Array(2,45),Array(0,240),Array(1,2))
-  for(i <- 0 until 4) {
-    insert(i,toBeInserted(i)(0),toBeInserted(i)(1))
-  }
-
-  poke(dut.io.cmd.valid, 0)
-  println(s"Inserted ${toBeInserted.map(_.mkString(":")).mkString(", ")}")
-  println(s"Head of queue is ${peek(dut.io.head.prio).mkString(", ")}")
-  val expected = findSmallest(toBeInserted,normalWidth,cyclicWidth)
-  expect(dut.io.head.prio.norm, expected(1))
-  expect(dut.io.head.prio.cycl, expected(0))
-
-  printMem()
-
-  remove(0)
-  printMem()
-
-  insert(4,3,124)
-  printMem()
-
-  remove(2)
-  printMem()
-
-  remove(0)
-  printMem()
-
-  remove(1)
-  printMem()
-
-  remove(0)
-  printMem()
-
-  insert(1,0,21)
-  printMem()
-
-}
-
 class PriorityQueueTests extends FlatSpec with Matchers {
-  val normalWidth = 8
-  val cyclicWidth = 2
-  val heapSize = 17
-  val childrenCount = 4
-  val referenceWidth = 5
-  val debugOutput = false
+  val cWid = 2
+  val nWid = 8
+  val rWid = 5
+  val heapSize = 9
+  val chCount = 2
+  val debugLvl = 2
   "HeapPrioQ" should "pass" in {
-    chisel3.iotesters.Driver(() => new HeapPrioQ(heapSize,childrenCount,normalWidth,cyclicWidth,referenceWidth)) {
-      c => new Test1(c,normalWidth,cyclicWidth,heapSize,childrenCount,referenceWidth,debugOutput)
+    chisel3.iotesters.Driver(() => new HeapPriorityQueue(heapSize,chCount,nWid,cWid,rWid)) {
+      c => {
+        val dut = new HeapPriorityQueueWrapper(c,heapSize,chCount,debugLvl)(cWid,nWid,rWid)
+        val toBeInserted = Array(Array(2,55),Array(2,45),Array(0,240),Array(1,2))
+        for(i <- 0 until 4) {
+          dut.insert(toBeInserted(i)(0),toBeInserted(i)(1),i)
+        }
+        //TODO: an error occurs here when 1:2:3 is inserted in the first heapifier cycle
+        dut.printMem()
+        dut.remove(0)
+        dut.printMem()
+        dut.insert(0,239,11)
+        dut.printMem()
+        dut.remove(11)
+        dut.printMem()
+        dut.remove(1)
+        dut.printMem()
+        dut.remove(3)
+        dut.printMem()
+        dut.remove(2)
+        dut.printMem()
+        dut.insert(0,22,23)
+        dut.printMem()
+        dut.insert(1,22,21)
+        dut.printMem()
+        dut
+      }
     } should be(true)
   }
 }

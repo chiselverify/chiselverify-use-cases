@@ -4,7 +4,7 @@ import lib._
 
 class Memory(size: Int, chCount: Int, rWid: Int, data: PriorityAndID) extends MultiIOModule {
   val rd = IO(Flipped(new rdPort(log2Ceil(size/chCount), Vec(chCount, data))))
-  val wr = IO(Flipped(new wrPort(log2Ceil(size/chCount), log2Ceil(chCount), Vec(chCount, data))))
+  val wr = IO(Flipped(new wrPort(log2Ceil(size/chCount), chCount, Vec(chCount, data))))
   val srch = IO(Flipped(new searchPort(size,rWid)))
 
   // create memory
@@ -23,7 +23,7 @@ class Memory(size: Int, chCount: Int, rWid: Int, data: PriorityAndID) extends Mu
 
   // write port
   when(wr.write){
-    Seq.tabulate(1)(i => mems(i).write(wr.address,wr.data,UIntToOH(wr.mask).asBools))
+    Seq.tabulate(1)(i => mems(i).write(wr.address,wr.data,wr.mask.asBools))
   }
 
   val lastAddr = ((srch.heapSize - 1.U) >> log2Ceil(chCount)).asUInt
@@ -35,7 +35,7 @@ class Memory(size: Int, chCount: Int, rWid: Int, data: PriorityAndID) extends Mu
   val resVec = Wire(Vec(chCount, Bool()))
   val errorFlag = RegInit(false.B)
 
-  resVec := rdData.map(_.id === srch.id)
+  resVec := rdData.map(_.id === srch.refID)
 
   srch.done := true.B
   srch.res := pointerReg

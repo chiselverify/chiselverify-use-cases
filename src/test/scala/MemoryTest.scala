@@ -42,7 +42,7 @@ class MemoryTester(dut: Memory) extends PeekPokeTester(dut){
   pokePrioID(dut.wr.data(1), 0,0,0)
   pokePrioID(dut.wr.data(2), 0,0,0)
   pokePrioID(dut.wr.data(3), 0,0,0)
-  poke(dut.srch.id, 0)
+  poke(dut.srch.refID, 0)
   poke(dut.srch.search, 0)
   step(5)
   poke(dut.wr.address, 0)
