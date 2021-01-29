@@ -9,3 +9,4 @@ out/
 *.anno.json
 *.v
 *.fir
+.bsp/sbt.json
